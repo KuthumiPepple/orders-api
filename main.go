@@ -1,19 +1,21 @@
 package main
 
 import (
-	"log"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 func main() {
-	server := &http.Server{
-		Addr:    ":8000",
-		Handler: http.HandlerFunc(basicHandler),
-	}
+	router := chi.NewRouter()
+	router.Use(middleware.Logger)
 
-	log.Fatal(server.ListenAndServe())
+	router.Get("/", basicHandler)
+
+	http.ListenAndServe(":8000", router)
 }
 
 func basicHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("basic server is running!"))
-}	
+}
