@@ -141,7 +141,7 @@ func (r *RedisRepo) FindAll(ctx context.Context, page PaginationOptions) (Result
 		v := v.(string)
 		var order model.Order
 		if err := json.Unmarshal([]byte(v), &order); err != nil {
-			return Results{}, fmt.Errorf("failed t decode order json: %w", err)
+			return Results{}, fmt.Errorf("failed to decode order json: %w", err)
 		}
 
 		orders[i] = order

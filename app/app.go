@@ -15,15 +15,16 @@ type Application struct {
 }
 
 func New() *Application {
-	return &Application{
-		router: loadRoutes(),
-		rdb:    redis.NewClient(&redis.Options{}),
+	app := &Application{
+		rdb: redis.NewClient(&redis.Options{}),
 	}
+	app.loadRoutes()
+	return app
 }
 
 func (a *Application) Start(ctx context.Context) error {
 	server := &http.Server{
-		Addr: ":8000",
+		Addr:    ":8000",
 		Handler: a.router,
 	}
 
@@ -32,8 +33,8 @@ func (a *Application) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to connect to redis: %w", err)
 	}
 
-	defer func(){
-		if err := a.rdb.Close(); err != nil{
+	defer func() {
+		if err := a.rdb.Close(); err != nil {
 			fmt.Println("failed to close redis", err)
 		}
 	}()
