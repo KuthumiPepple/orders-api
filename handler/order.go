@@ -2,12 +2,14 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/kuthumipepple/orders-api/model"
 	"github.com/kuthumipepple/orders-api/repository/order"
@@ -56,7 +58,36 @@ func (o *Order) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (o *Order) GetByID(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Get an order by ID")
+	idParam := chi.URLParam(r, "id")
+
+	const base = 10
+	const bitSize = 64
+
+	orderID, err := strconv.ParseUint(idParam, base, bitSize)
+	if err != nil {
+		fmt.Println("failed to parse id:", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	ord, err := o.Repo.FindByID(
+		r.Context(),
+		orderID,
+	)
+	if errors.Is(err, order.ErrNotExist) {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	} else if err != nil {
+		fmt.Println("failed to find by id:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(ord); err != nil {
+		fmt.Println("failed to marshal:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 func (o *Order) List(w http.ResponseWriter, r *http.Request) {
@@ -65,10 +96,10 @@ func (o *Order) List(w http.ResponseWriter, r *http.Request) {
 		cursorStr = "0"
 	}
 
-	const BASE = 10
-	const BIT_SIZE = 64
+	const base = 10
+	const bitSize = 64
 
-	cursor, err := strconv.ParseUint(cursorStr, BASE, BIT_SIZE)
+	cursor, err := strconv.ParseUint(cursorStr, base, bitSize)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
