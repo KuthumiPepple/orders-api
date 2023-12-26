@@ -6,18 +6,23 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/joho/godotenv"
 	"github.com/kuthumipepple/orders-api/app"
 	"github.com/kuthumipepple/orders-api/logger"
 )
 
 func main() {
+	if err := godotenv.Load(); err != nil {
+		log.Println("unable to load `.env` file:", err)
+	}
+
 	file, err := logger.SetupLog()
 	if err != nil {
-		log.Fatal(err)
+		log.Println("failed to set up log file:", err)
 	}
 	defer file.Close()
 
-	application := app.New()
+	application := app.New(app.LoadConfig())
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
