@@ -26,7 +26,7 @@ func (o *Order) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	err := json.NewDecoder(r.Body).Decode(&body)
 	if err != nil {
-		log.Println("failed to unmarhal:", err)
+		log.Println("failed to unmarshal:", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -146,7 +146,7 @@ func (o *Order) UpdateByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		log.Println("failed to unmarhal:", err)
+		log.Println("failed to unmarshal:", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -215,5 +215,29 @@ func (o *Order) UpdateByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (o *Order) DeleteByID(w http.ResponseWriter, r *http.Request) {
-	log.Println("Delete an order by ID")
+	idParam := chi.URLParam(r, "id")
+
+	const base = 10
+	const bitSize = 64
+
+	orderID, err := strconv.ParseUint(idParam, base, bitSize)
+	if err != nil {
+		log.Println("failed to parse id:", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	err = o.Repo.DeleteByID(
+		r.Context(),
+		orderID,
+	)
+	if errors.Is(err, order.ErrNotExist) {
+		log.Println("order not found:", err)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	} else if err != nil {
+		log.Println("failed to delete by id:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
