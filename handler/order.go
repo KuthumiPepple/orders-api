@@ -70,7 +70,7 @@ func (o *Order) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ord, err := o.Repo.FindByID(
+	foundOrder, err := o.Repo.FindByID(
 		r.Context(),
 		orderID,
 	)
@@ -83,7 +83,7 @@ func (o *Order) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(ord); err != nil {
+	if err := json.NewEncoder(w).Encode(foundOrder); err != nil {
 		fmt.Println("failed to marshal:", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -139,7 +139,77 @@ func (o *Order) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (o *Order) UpdateByID(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Update an order by ID")
+	var body struct {
+		Status string `json:"status"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		fmt.Println("failed to unmarhal:", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	idParam := chi.URLParam(r, "id")
+	const base = 10
+	const bitSize = 64
+
+	orderID, err := strconv.ParseUint(idParam, base, bitSize)
+	if err != nil {
+		fmt.Println("failed to parse:", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	foundOrder, err := o.Repo.FindByID(
+		r.Context(),
+		orderID,
+	)
+	if errors.Is(err, order.ErrNotExist) {
+		fmt.Println("order not found:", err)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	} else if err != nil {
+		fmt.Println("failed to find by id:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	const shippedStatus = "shipped"
+	const completedStatus = "completed"
+	now := time.Now().UTC()
+
+	switch body.Status {
+	case shippedStatus:
+		if foundOrder.ShippedAt != nil {
+			fmt.Println("`ShippedAt` field already set")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		foundOrder.ShippedAt = &now
+	case completedStatus:
+		if foundOrder.CompletedAt != nil || foundOrder.ShippedAt == nil {
+			fmt.Println("`CompletedAt` field already set or `ShippedAt` field not set")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		foundOrder.CompletedAt = &now
+	default:
+		fmt.Println("`Status` field not set to shipped or completed")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if err := o.Repo.Update(r.Context(), foundOrder); err != nil {
+		fmt.Println("failed to update:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(foundOrder); err != nil {
+		fmt.Println("failed to marshal:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 func (o *Order) DeleteByID(w http.ResponseWriter, r *http.Request) {
