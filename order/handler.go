@@ -1,4 +1,4 @@
-package handler
+package order
 
 import (
 	"encoding/json"
@@ -11,18 +11,16 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/kuthumipepple/orders-api/model"
-	"github.com/kuthumipepple/orders-api/repository/order"
 )
 
-type Order struct {
-	Repo *order.RedisRepo
+type Handler struct {
+	Repo *RedisRepo
 }
 
-func (o *Order) Create(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		CustomerID uuid.UUID        `json:"customer_id"`
-		LineItems  []model.LineItem `json:"line_items"`
+		CustomerID uuid.UUID  `json:"customer_id"`
+		LineItems  []LineItem `json:"line_items"`
 	}
 	err := json.NewDecoder(r.Body).Decode(&body)
 	if err != nil {
@@ -33,14 +31,14 @@ func (o *Order) Create(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now().UTC()
 
-	order := model.Order{
+	order := Order{
 		OrderID:    rand.Uint64(),
 		CustomerID: body.CustomerID,
 		LineItems:  body.LineItems,
 		CreatedAt:  &now,
 	}
 
-	err = o.Repo.Insert(r.Context(), order)
+	err = h.Repo.Insert(r.Context(), order)
 	if err != nil {
 		log.Println("failed to insert:", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -58,7 +56,7 @@ func (o *Order) Create(w http.ResponseWriter, r *http.Request) {
 	w.Write(res)
 }
 
-func (o *Order) GetByID(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
 
 	const base = 10
@@ -71,11 +69,11 @@ func (o *Order) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	foundOrder, err := o.Repo.FindByID(
+	foundOrder, err := h.Repo.FindByID(
 		r.Context(),
 		orderID,
 	)
-	if errors.Is(err, order.ErrNotExist) {
+	if errors.Is(err, ErrNotExist) {
 		log.Println("order not found:", err)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -92,7 +90,7 @@ func (o *Order) GetByID(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (o *Order) List(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	cursorStr := r.URL.Query().Get("cursor")
 	if cursorStr == "" {
 		cursorStr = "0"
@@ -109,9 +107,9 @@ func (o *Order) List(w http.ResponseWriter, r *http.Request) {
 
 	const count = 50
 
-	res, err := o.Repo.FindAll(
+	res, err := h.Repo.FindAll(
 		r.Context(),
-		order.PaginationOptions{
+		PaginationOptions{
 			Count:  count,
 			Cursor: cursor,
 		},
@@ -123,8 +121,8 @@ func (o *Order) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var response struct {
-		Items []model.Order `json:"items"`
-		Next  uint64        `json:"next,omitempty"`
+		Items []Order `json:"items"`
+		Next  uint64  `json:"next,omitempty"`
 	}
 
 	response.Items = res.Orders
@@ -140,7 +138,7 @@ func (o *Order) List(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
-func (o *Order) UpdateByID(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) UpdateByID(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Status string `json:"status"`
 	}
@@ -162,11 +160,11 @@ func (o *Order) UpdateByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	foundOrder, err := o.Repo.FindByID(
+	foundOrder, err := h.Repo.FindByID(
 		r.Context(),
 		orderID,
 	)
-	if errors.Is(err, order.ErrNotExist) {
+	if errors.Is(err, ErrNotExist) {
 		log.Println("order not found:", err)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -201,7 +199,7 @@ func (o *Order) UpdateByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := o.Repo.Update(r.Context(), foundOrder); err != nil {
+	if err := h.Repo.Update(r.Context(), foundOrder); err != nil {
 		log.Println("failed to update:", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -214,7 +212,7 @@ func (o *Order) UpdateByID(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (o *Order) DeleteByID(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) DeleteByID(w http.ResponseWriter, r *http.Request) {
 	idParam := chi.URLParam(r, "id")
 
 	const base = 10
@@ -227,11 +225,11 @@ func (o *Order) DeleteByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = o.Repo.DeleteByID(
+	err = h.Repo.DeleteByID(
 		r.Context(),
 		orderID,
 	)
-	if errors.Is(err, order.ErrNotExist) {
+	if errors.Is(err, ErrNotExist) {
 		log.Println("order not found:", err)
 		w.WriteHeader(http.StatusNotFound)
 		return

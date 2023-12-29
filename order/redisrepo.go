@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/kuthumipepple/orders-api/model"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -20,7 +19,7 @@ func orderIDKey(id uint64) string {
 	return fmt.Sprintf("order:%d", id)
 }
 
-func (r *RedisRepo) Insert(ctx context.Context, order model.Order) error {
+func (r *RedisRepo) Insert(ctx context.Context, order Order) error {
 	jsonData, err := json.Marshal(order)
 	if err != nil {
 		return fmt.Errorf("failed to encode order: %w", err)
@@ -46,19 +45,19 @@ func (r *RedisRepo) Insert(ctx context.Context, order model.Order) error {
 	return nil
 }
 
-func (r *RedisRepo) FindByID(ctx context.Context, id uint64) (model.Order, error) {
+func (r *RedisRepo) FindByID(ctx context.Context, id uint64) (Order, error) {
 	key := orderIDKey(id)
 	value, err := r.Client.Get(ctx, key).Result()
 	if errors.Is(err, redis.Nil) {
-		return model.Order{}, ErrNotExist
+		return Order{}, ErrNotExist
 	} else if err != nil {
-		return model.Order{}, fmt.Errorf("get order: %w", err)
+		return Order{}, fmt.Errorf("get order: %w", err)
 	}
 
-	var order model.Order
+	var order Order
 	err = json.Unmarshal([]byte(value), &order)
 	if err != nil {
-		return model.Order{}, fmt.Errorf("failed to decode order json: %w", err)
+		return Order{}, fmt.Errorf("failed to decode order json: %w", err)
 	}
 
 	return order, nil
@@ -89,7 +88,7 @@ func (r *RedisRepo) DeleteByID(ctx context.Context, id uint64) error {
 	return nil
 }
 
-func (r *RedisRepo) Update(ctx context.Context, order model.Order) error {
+func (r *RedisRepo) Update(ctx context.Context, order Order) error {
 	jsondata, err := json.Marshal(order)
 	if err != nil {
 		return fmt.Errorf("failed to encode order: %w", err)
@@ -110,7 +109,7 @@ type PaginationOptions struct {
 }
 
 type Results struct {
-	Orders []model.Order
+	Orders []Order
 	Cursor uint64
 }
 
@@ -128,7 +127,7 @@ func (r *RedisRepo) FindAll(ctx context.Context, page PaginationOptions) (Result
 	}
 
 	if len(keys) == 0 {
-		return Results{Orders: []model.Order{}}, nil
+		return Results{Orders: []Order{}}, nil
 	}
 
 	res, err := r.Client.MGet(ctx, keys...).Result()
@@ -136,10 +135,10 @@ func (r *RedisRepo) FindAll(ctx context.Context, page PaginationOptions) (Result
 		return Results{}, fmt.Errorf("failed to get orders: %w", err)
 	}
 
-	orders := make([]model.Order, len(res))
+	orders := make([]Order, len(res))
 	for i, v := range res {
 		v := v.(string)
-		var order model.Order
+		var order Order
 		if err := json.Unmarshal([]byte(v), &order); err != nil {
 			return Results{}, fmt.Errorf("failed to decode order json: %w", err)
 		}

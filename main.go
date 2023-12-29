@@ -8,7 +8,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/kuthumipepple/orders-api/app"
-	"github.com/kuthumipepple/orders-api/logger"
+	"github.com/kuthumipepple/orders-api/internal/logger"
 )
 
 func main() {
