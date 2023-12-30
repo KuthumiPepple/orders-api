@@ -13,8 +13,6 @@ type RedisRepo struct {
 	Client *redis.Client
 }
 
-var ErrNotExist = errors.New("order does not exist")
-
 func orderIDKey(id uint64) string {
 	return fmt.Sprintf("order:%d", id)
 }
@@ -101,16 +99,6 @@ func (r *RedisRepo) Update(ctx context.Context, order Order) error {
 		return fmt.Errorf("set order: %w", err)
 	}
 	return nil
-}
-
-type PaginationOptions struct {
-	Count  uint64
-	Cursor uint64
-}
-
-type Results struct {
-	Orders []Order
-	Cursor uint64
 }
 
 func (r *RedisRepo) FindAll(ctx context.Context, page PaginationOptions) (Results, error) {

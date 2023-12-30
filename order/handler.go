@@ -13,8 +13,10 @@ import (
 	"github.com/google/uuid"
 )
 
+var ErrNotExist = errors.New("order does not exist")
+
 type Handler struct {
-	Repo *RedisRepo
+	Repo Repo
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
